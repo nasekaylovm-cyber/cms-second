@@ -100,7 +100,7 @@ jobs:
             cd /var/www/cms
             sed -i 's/"AGPL-3.0-or-later"/{"text": "AGPL-3.0-or-later"}/g' pyproject.toml
 
-      - name: Initialize CMS
+      - name: Initialize CMS and configuration
         uses: appleboy/ssh-action@master
         with:
           host: 5.129.250.92
@@ -109,23 +109,34 @@ jobs:
           script: |
             cd /var/www/cms
             source venv/bin/activate
+      
+           
             if [ ! -d "etc" ]; then
               mkdir etc
             fi
+            
+          
             if [ -f "cms.conf" ]; then
               mv cms.conf etc/
-            cmsConvertConfig etc/cms.conf etc/cms.toml
+              python3 -m cms.server.config_converter etc/cms.conf etc/cms.toml
             fi
+            
+           
             if [ ! -f "etc/cms.toml" ]; then
-              cmsGenerateConfig
+              python3 -m cms.server.generate_config etc/cms.toml
             fi
+            
+           
             if [ ! -f "etc/cms_ranking.toml" ]; then
-              cmsGenerateRankingConfig
+              python3 -m cms.server.generate_ranking_config etc/cms_ranking.toml
             fi
-            cmsInitDB
-            cmsAdminWebServer 0
-            cmsLogService 0
-            cmsRankingWebServer
+            
+            
+            python3 -m cms.server.init_db
+            python3 -m cms.server.admin_web_server 0
+            python3 -m cms.server.log_service 0
+            python3 -m cms.server.ranking_web_server
+
 
       - name: Verify deployment
         run: |
