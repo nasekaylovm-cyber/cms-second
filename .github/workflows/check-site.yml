@@ -1,0 +1,30 @@
+name: check-site
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  test-site:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check server status
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: 5.129.250.92
+        username: root
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          # Проверяем что сервер запущен
+          ps aux | grep python
+          netstat -tlnp
+          curl -v http://localhost:8000 || echo "Local check failed"
+          
+          # Проверяем firewall
+          ufw status
+          iptables -L
+          
+          # Проверяем доступ извне
+          echo "Server IP: $(hostname -I)"
+          echo "Open ports:"
+          ss -tlnp
