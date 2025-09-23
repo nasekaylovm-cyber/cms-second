@@ -1,4 +1,4 @@
-name: Deploy to Server
+name: Deploy CMS to Server
 
 on:
   push:
@@ -8,14 +8,52 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-    - name: Deploy CMS
+    - name: Full CMS deployment
       uses: appleboy/ssh-action@v1.0.3
       with:
         host: 5.129.250.92
         username: root
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         script: |
-          cd /var/www/cms
-          git pull origin main
-          systemctl restart cms
-        
+          
+          apt-get update
+          apt-get install -y wget tar python3 python3-pip postgresql postgresql-contrib
+          
+          
+          cd /var/www
+          rm -rf cms
+          wget https://github.com/cms-dev/cms/releases/download/v1.2.0/v1.2.0.tar.gz
+          tar -xf v1.2.0.tar.gz
+          mv cms-1.2.0 cms
+          cd cms
+          
+          
+          cp config/cms.conf.sample config/cms.conf
+          cp config/cms.ranking.conf.sample config/cms.ranking.conf
+          
+          
+          sudo -u postgres createuser cmsuser -P -s || true
+          sudo -u postgres createdb -O cmsuser cmsdb || true
+          sudo -u postgres psql cmsdb -c "ALTER SCHEMA public OWNER TO cmsuser"
+          sudo -u postgres psql cmsdb -c "GRANT SELECT ON pg_largeobject TO cmsuser"
+          
+          
+          sed -i 's|postgresql+psycopg2://username:password@localhost/database_name|postgresql+psycopg2://cmsuser:cmsuser@localhost/cmsdb|g' config/cms.conf
+          sed -i 's/localhost/5.129.250.92/g' config/cms.conf
+          sed -i 's/username/cmsuser/g' config/cms.ranking.conf
+          sed -i 's/password/cmsuser/g' config/cms.ranking.conf
+          
+          
+          pip3 install -r requirements.txt
+          python3 setup.py build
+          python3 setup.py install
+          
+          
+          cmsInitDB
+          
+          
+          nohup cmsAdminWebServer > admin.log 2>&1 &
+          nohup cmsLogService > log.log 2>&1 &
+          nohup cmsRankingWebServer > ranking.log 2>&1 &
+          
+          echo "✅ CMS deployed: http://5.129.250.92:8889"
