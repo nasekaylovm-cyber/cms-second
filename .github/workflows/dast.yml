@@ -12,47 +12,45 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Set up Java (required for ZAP)
-        uses: actions/setup-java@v3
-        with:
-          java-version: '11'
-          distribution: 'adopt'
-      
-      - name: Install OWASP ZAP
-        run: |
-          # Получаем последнюю версию ZAP
-          ZAP_VERSION=$(curl -s https://api.github.com/repos/zaproxy/zaproxy/releases/latest | grep "tag_name" | grep -Eo 'v[0-9]+\.[0-9]+\.[0-9]+' | head -n 1)
-          wget https://github.com/zaproxy/zaproxy/releases/download/$ZAP_VERSION/ZAP_$ZAP_VERSION_Linux.zip
-          unzip ZAP_$ZAP_VERSION_Linux.zip
-          cd ZAP_$ZAP_VERSION_Linux
-          
-      - name: Start ZAP in daemon mode
-        run: |
-          ./zap.sh -daemon -config api.key=123456 -config script.scripting.enabled=true
-          sleep 30 # Ждем запуска ZAP
-          
-      - name: Check ZAP status
-        run: |
-          curl http://localhost:8080/JSON/core/core/status/?apikey=123456
-          
-      - name: Configure ZAP scan
-        run: |
-          # Настройка целевого URL
-          curl -v "http://localhost:8080/JSON/ascan/action/scan?url=http://5.129.250.92&recursive=true&apikey=123456"
-          
-          # Ждем завершения сканирования
-          while "$(curl -s "http://localhost:8080/JSON/ascan/view/scans/?apikey=123456" | grep -c 'inprogress')" -gt 0 ; do
-            sleep 60
-          done
-          
-      - name: Export scan results
-        run: |
-          # Создаем директорию для отчетов
-          mkdir reports
-          curl -o reports/DAST_Report.html "http://localhost:8080/OTHER/core/other/exportReport/?apikey=123456&name=DAST_Report&reportFormat=HTML"
-          
-      - name: Upload scan results
-        uses: actions/upload-artifact@v4
-        with:
-          name: dast-reports
-          path: reports/
+    - name: Set up Java (required for ZAP)
+      uses: actions/setup-java@v3
+      with:
+        java-version: '11'
+        distribution: 'adopt'
+        
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y owasp-zap
+        
+    - name: Start ZAP in daemon mode
+      run: |
+        zap-cli daemon start --port 8090
+        sleep 30 # Ждем запуска ZAP
+        
+    - name: Check ZAP status
+      run: |
+        curl http://localhost:8090/JSON/core/core/status/?apikey=123456
+        
+    - name: Configure ZAP scan
+      run: |
+        # Настройка целевого URL
+        curl -v "http://localhost:8090/JSON/ascan/action/scan?url=http://5.129.250.92&recursive=true&apikey=123456"
+        
+        # Ждем завершения сканирования
+        while "$(curl -s "http://localhost:8090/JSON/ascan/view/scans/?apikey=123456" | grep -c 'inprogress')" -gt 0 ; do
+          sleep 60
+        done
+        
+    - name: Export scan results
+      run: |
+        # Создаем директорию для отчетов
+        mkdir reports
+        curl -o reports/DAST_Report.html "http://localhost:8090/OTHER/core/other/exportReport/?apikey=123456&name=DAST_Report&reportFormat=HTML"
+        
+    - name: Upload scan results
+      uses: actions/upload-artifact@v4
+      with:
+        name: dast-reports
+        path: reports/
+
