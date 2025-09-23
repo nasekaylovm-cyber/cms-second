@@ -18,22 +18,16 @@ jobs:
           mkdir -p /var/www/cms
           cd /var/www/cms
           
-          if [ ! -d ".git" ]; then
-            git clone https://github.com/nasekaylovm-cyber/cms-second .
-          else
-            git pull origin main
-          fi
+          git clone https://github.com/cms-dev/cms.git .
           
-          apt-get update && apt-get install -y python3.11 python3.11-venv
-          
-          python3.11 -m venv venv
+          python3 -m venv venv
           ./venv/bin/pip install -e .
           
-          ./venv/bin/python -c "import cms; print('✅ CMS imported successfully')"
+          ./venv/bin/python -c "import cms; print('✅ CMS imported')"
           
           cat > /etc/systemd/system/cms.service << EOF
             [Unit]
-            Description=Real CMS Application
+            Description=CMS Contest Management System
             After=network.target
 
             [Service]
@@ -41,7 +35,7 @@ jobs:
             User=root
             WorkingDirectory=/var/www/cms
             Environment=PYTHONPATH=/var/www/cms
-            ExecStart=/var/www/cms/venv/bin/python -m cms
+            ExecStart=/var/www/cms/venv/bin/python -m cms resourceService -a 0.0.0.0 -p 8000
             Restart=always
 
             [Install]
