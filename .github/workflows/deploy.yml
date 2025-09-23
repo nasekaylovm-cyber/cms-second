@@ -114,18 +114,13 @@ jobs:
            cd /var/www/cms
            source venv/bin/activate
 
-            if [ ! -f "venv/etc/cms.toml" ]; then
-              mkdir -p venv/etc
-              cat > venv/etc/cms.toml <<END_TEXT
-                title = "CMS"
-                base_url = "http://5.129.250.92"
-                support_email = "support@5.129.250.92"
-              END_TEXT
-              
-            fi
            rm -rf venv/etc
            mkdir -p etc
            ln -sf $(pwd)/etc venv/etc
+           
+            echo 'title = "CMS"' > venv/etc/cms.toml
+            echo 'base_url = "http://5.129.250.92"' >> venv/etc/cms.toml
+            echo 'support_email = "support@5.129.250.92"' >> venv/etc/cms.toml
            
            python3 -m cms.server.config_converter etc/cms.conf etc/cms.toml 2>/dev/null || true
            python3 -m cms.server.generate_config etc/cms.toml 2>/dev/null || true
