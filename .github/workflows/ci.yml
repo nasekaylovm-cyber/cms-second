@@ -15,7 +15,6 @@ jobs:
 
   sast-analysis:
     runs-on: ubuntu-latest
-    name: SAST Security Scanning
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -28,7 +27,8 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install bandit safety pylint
+        pip install bandit safety pylint pip-audit
+        mkdir -p reports
         
     - name: Run Bandit SAST
       run: |
