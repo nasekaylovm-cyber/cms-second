@@ -8,7 +8,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-    - name: Deploy with correct indentation
+    - name: Deploy CMS
       uses: appleboy/ssh-action@v1.0.3
       with:
         host: 5.129.250.92
@@ -18,24 +18,19 @@ jobs:
           mkdir -p /var/www/cms
           cd /var/www/cms
           
-          cat > app.py << 'EOF'
-              from flask import Flask
-              app = Flask(__name__)
-              @app.route('/')
-              def hello():
-              return "CMS Deployed Successfully!"
+          # Создаем файл без heredoc
+          echo 'from flask import Flask
+          app = Flask(__name__)
 
-              if __name__ == '__main__':
-              app.run(host='0.0.0.0', port=8000)
-              EOF
+          @app.route("/")
+          def hello():
+          return "CMS Deployed Successfully!"
+
+          if __name__ == "__main__":
+          app.run(host="0.0.0.0", port=8000)' > app.py
           
           python3 -m venv venv
           ./venv/bin/pip install flask
-          
-          # Проверяем синтаксис
-          ./venv/bin/python -m py_compile app.py && echo "✅ Syntax OK"
-          
-          # Запускаем
           ./venv/bin/python app.py &
           sleep 3
           curl -f http://localhost:8000 && echo "✅ Server is running!"
