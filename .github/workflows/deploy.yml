@@ -110,38 +110,28 @@ jobs:
          username: root
          key: ${{ secrets.SSH_PRIVATE_KEY }}
          script: |
-           cd /var/www/cms
-           source venv/bin/activate
-           
-           # Проверяем существование директории etc
-           if [ ! -d "etc" ]; then
-           mkdir etc
-           fi
-           
-           # Проверяем наличие cms.conf и конвертируем его
-           if [ -f "cms.conf" ]; then
-           mv cms.conf etc/
-           python3 -m cms.server.config_converter etc/cms.conf etc/cms.toml
-           fi
-           
-           # Генерируем конфигурацию если файлы отсутствуют
-           if [ ! -f "etc/cms.toml" ]; then
-           python3 -m cms.server.generate_config etc/cms.toml
-           fi
-           
-           # Проверяем наличие ранжировочной конфигурации
-           if [ ! -f "etc/cms_ranking.toml" ]; then
-           python3 -m cms.server.generate_ranking_config etc/cms_ranking.toml
-           fi
-           
-           # Проверяем существование символической ссылки
-           if [ ! -L "venv/etc" ]; then
-           ln -sf $(pwd)/etc venv/etc
-           fi
-           
-           # Инициализация системы
-           python3 -m cms.server.init_db
-           python3 -m cms.server.admin_web_server 0
-           python3 -m cms.server.log_service 0
-           python3 -m cms.server.ranking_web_server
-          
+            cd /var/www/cms
+            source venv/bin/activate
+            
+            mkdir -p etc
+            
+            if [ -f "cms.conf" ]; then
+              mv cms.conf etc/
+              python3 -m cms.server.config_converter etc/cms.conf etc/cms.toml
+            fi
+            
+            if [ ! -f "etc/cms.toml" ]; then
+              python3 -m cms.server.generate_config etc/cms.toml
+            fi
+            
+            if [ ! -f "etc/cms_ranking.toml" ]; then
+              python3 -m cms.server.generate_ranking_config etc/cms_ranking.toml
+            fi
+            
+            ln -sf $(pwd)/etc venv/etc
+            
+            python3 -m cms.server.init_db
+            python3 -m cms.server.admin_web_server 0
+            python3 -m cms.server.log_service 0
+            python3 -m cms.server.ranking_web_server
+            
