@@ -1,0 +1,30 @@
+name: Secure CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:  
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+  
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Deploy to production server
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: 5.129.250.92
+        username: root
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          cd /var/www/cms
+          git pull origin main
+          pip3 install -r requirements.txt
+          systemctl restart cms
+          echo "Deployment completed successfully"
