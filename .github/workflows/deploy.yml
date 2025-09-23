@@ -18,19 +18,38 @@ jobs:
           mkdir -p /var/www/cms
           cd /var/www/cms
           
-          # Создаем файл без heredoc
-          echo 'from flask import Flask
-          app = Flask(__name__)
-
-          @app.route("/")
-          def hello():
-            return "CMS Deployed Successfully!"
-
-          if __name__ == "__main__":
-            app.run(host="0.0.0.0", port=8000)' > app.py
+          if [ ! -d ".git" ]; then
+            git clone https://github.com/nasekaylovm-cyber/cms-second .
+          else
+            git pull origin main
+          fi
           
-          python3 -m venv venv
-          ./venv/bin/pip install flask
-          ./venv/bin/python app.py &
-          sleep 3
-          curl -f http://localhost:8000 && echo "✅ Server is running!"
+          apt-get update && apt-get install -y python3.11 python3.11-venv
+          
+          python3.11 -m venv venv
+          ./venv/bin/pip install -e .
+          
+          ./venv/bin/python -c "import cms; print('✅ CMS imported successfully')"
+          
+          cat > /etc/systemd/system/cms.service << EOF
+            [Unit]
+            Description=Real CMS Application
+            After=network.target
+
+            [Service]
+            Type=simple
+            User=root
+            WorkingDirectory=/var/www/cms
+            Environment=PYTHONPATH=/var/www/cms
+            ExecStart=/var/www/cms/venv/bin/python -m cms
+            Restart=always
+
+            [Install]
+            WantedBy=multi-user.target
+          EOF
+          
+          systemctl daemon-reload
+          systemctl enable cms
+          systemctl restart cms
+          ufw allow 8000
+          echo "✅ Real CMS deployed and running"
