@@ -26,34 +26,6 @@ jobs:
           mkdir -p /var/www/cms
           cd /var/www/cms
           
-          if [ ! -d ".git" ]; then
-            git clone https://github.com/nasekaylovm-cyber/cms-second
-            cp -r /tmp/cms-tmp/* /var/www/cms/
-            rm -rf /tmp/cms-tmp
-          else
-            git pull origin main
-          fi
-          
-          python3 -m venv /var/www/cms/venv
-          /var/www/cms/venv/bin/pip install -r /var/www/cms/requirements.txt
-          
-          cat > /etc/systemd/system/cms.service << EOF
-          [Unit]
-          Description=CMS Service
-          After=network.target
-          
-          [Service]
-          Type=simple
-          User=root
-          WorkingDirectory=/var/www/cms
-          ExecStart=/var/www/cms/venv/bin/python -m cms
-          Restart=always
-          
-          [Install]
-          WantedBy=multi-user.target
-          EOF
-          
-          systemctl daemon-reload
-          systemctl enable cms
-          systemctl restart cms
-          echo "Deployment completed successfully"
+          echo "CMS Application" > index.html
+          echo "Deployed: $(date)" > status.txt
+          echo "Simple deployment completed"
