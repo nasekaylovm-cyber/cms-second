@@ -11,7 +11,7 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v3
 
     - name: Setup SSH environment
       uses: appleboy/ssh-action@master
@@ -55,13 +55,13 @@ jobs:
       with:
         host: 5.129.250.92
         username: root
-        key: ${{ secrets/SSH_PRIVATE_KEY }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
         script: |
           cd /var/www/cms
           source venv/bin/activate
           pip install --upgrade pip
-          # Если requirements.txt нет, используем установку из setup.py
           pip install .
+          pip install psycopg2-binary
 
     - name: Fix license issue
       uses: appleboy/ssh-action@master
