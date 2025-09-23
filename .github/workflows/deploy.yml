@@ -28,7 +28,10 @@ jobs:
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         script: |
           sudo apt-get update -y
-          sudo apt-get install -y python3-pip python3-venv python3-dev postgresql postgresql-contrib libpq-dev libcups-dev
+          sudo apt-get install -y software-properties-common
+          sudo apt-get install -y python3-pip python3-venv python3-dev postgresql postgresql-contrib libpq-dev
+          sudo apt-get install -y libcups2-dev # Альтернативный пакет
+          sudo apt-get install -y libcupsimage2-dev # Дополнительные зависимости
 
     - name: Prepare environment
       uses: appleboy/ssh-action@master
@@ -55,13 +58,13 @@ jobs:
       with:
         host: 5.129.250.92
         username: root
-        key: ${{ secrets/SSH_PRIVATE_KEY }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
         script: |
           cd /var/www/cms
           source venv/bin/activate
           pip install --upgrade pip
-          # Если requirements.txt нет, используем установку из setup.py
           pip install .
+          pip install psycopg2-binary
 
     - name: Fix license issue
       uses: appleboy/ssh-action@master
@@ -102,4 +105,4 @@ jobs:
     - name: Verify deployment
       run: |
         curl http://5.129.250.92:8889
-        curl http://5.129.250.92:8890
+        curl http://5.129.250.92:8
