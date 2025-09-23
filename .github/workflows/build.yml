@@ -19,7 +19,7 @@ jobs:
       with:
         python-version: '3.11'
         
-    - name: Install core dependencies
+    - name: Install
       run: |
         pip install
   
