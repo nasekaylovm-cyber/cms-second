@@ -5,32 +5,46 @@ on:
     branches: [ main ]
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
-    - name: Deploy minimal working CMS
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: 5.129.250.92
-        username: root
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        script: |
-          # Устанавливаем только необходимое
-          apt-get update
-          apt-get install -y python3 python3-venv git
-          
-          # Клонируем CMS
-          cd /var/www
-          rm -rf cms
-          git clone https://github.com/cms-dev/cms.git
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-pip python3-dev postgresql postgresql-contrib libpq-dev
+      
+      - name: Build CMS
+        run: |
+          wget https://github.com/cms-dev/cms/releases/download/v1.2.0/v1.2.0.tar.gz
+          tar -xf v1.2.0.tar.gz
           cd cms
-          
-          # Устанавливаем только базовые зависимости
-          python3 -m venv venv
-          ./venv/bin/pip install flask gunicorn
-          
-          # Запускаем простой веб-сервер для демонстрации
-          echo "from flask import Flask; app = Flask(__name__); @app.route('/'); def home(): return 'CMS Deployed'; app.run('0.0.0.0', 8000)" > server.py
-          nohup ./venv/bin/python server.py > cms.log 2>&1 &
-          
-          echo "✅ Minimal CMS deployed to http://5.129.250.92:8000"
+          ./setup.py build
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to server
+        uses: appleboy/ssh-action@master
+        with:
+          host: 5.129.250.92
+          username: root
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            sudo apt-get update
+            sudo apt-get install -y python3-pip python3-dev postgresql postgresql-contrib libpq-dev
+            wget https://github.com/cms-dev/cms/releases/download/v1.2.0/v1.2.0.tar.gz
+            tar -xf v1.2.0.tar.gz
+            cd cms
+            sudo ./setup.py install
+            sudo su - postgres -c "createuser your_username -P"
+            createdb -O your_username your_database
+            psql your_database -c 'ALTER SCHEMA public OWNER TO your_username'
+            psql your_database -c 'GRANT SELECT ON pg_largeobject TO your_username'
+            cmsInitDB
+            cmsAdminWebServer 0
+            cmsLogService 0
+            cmsRankingWebServer
