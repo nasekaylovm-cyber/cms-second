@@ -26,12 +26,12 @@ jobs:
     - name: Run Bandit SAST
       run: |
         bandit -r . -f json -o reports/bandit-report.json || true
-      continue-on-error: true
+      #continue-on-error: true
       
     - name: Run Safety check
       run: |
         safety check --json --output reports/safety-report.json || true
-      continue-on-error: true
+      #continue-on-error: true
       
     - name: Upload SAST reports
       uses: actions/upload-artifact@v4
