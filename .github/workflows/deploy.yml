@@ -118,7 +118,7 @@ jobs:
               echo "Файл venv/etc/cms.toml не найден, создаю его..."
               mkdir -p venv/etc
               
-              cat > venv/etc/cms.toml <<EOF
+              cat > venv/etc/cms.toml <<-EOF
                 title = "CMS"
                 base_url = "http://5.129.250.92"
                 support_email = "support@5.129.250.92"
