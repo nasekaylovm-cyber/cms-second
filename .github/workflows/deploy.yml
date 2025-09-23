@@ -1,5 +1,4 @@
 name: CMS Deployment
-
 on:
   push:
     branches: [ main, develop ]
