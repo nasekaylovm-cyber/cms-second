@@ -61,12 +61,13 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /var/www/cms
-            if ! -d "etc"; then
+            if [ ! -d "etc" ]; then
               mkdir etc
             fi
-            if ! -L "venv/etc"; then
+            if [ ! -L "venv/etc" ]; then
               ln -s $(pwd)/etc venv/etc
             fi
+            
       - name: Configure PostgreSQL
         uses: appleboy/ssh-action@master
         with:
@@ -74,8 +75,8 @@ jobs:
           username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            # Замените YOUR_SECURE_PASSWORD на ваш реальный пароль
-            sudo -u postgres psql -c "CREATE USER Alisa@mail.ru WITH PASSWORD '!Nas1k83';"
+           
+            sudo -u postgres psql -c "CREATE USER Alisa WITH PASSWORD '!Nas1k83';"
             sudo -u postgres createdb -O cms_user cms_db
             sudo -u postgres psql cms_db -c 'ALTER SCHEMA public OWNER TO cms_user'
             sudo -u postgres psql cms_db -c 'GRANT SELECT ON pg_largeobject TO cms_user'
