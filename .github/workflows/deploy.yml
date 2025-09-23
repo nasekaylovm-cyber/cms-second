@@ -118,13 +118,24 @@ jobs:
            mkdir -p etc
            ln -sf $(pwd)/etc venv/etc
            
-            echo '[database]' > venv/etc/cms.toml
-            echo 'url = "sqlite:///db.sqlite"' >> venv/etc/cms.toml
+            echo 'database' > venv/etc/cms.toml
+            echo ' url = "sqlite:///db.sqlite"' >> venv/etc/cms.toml
             echo '' >> venv/etc/cms.toml
-            echo '[server]' >> venv/etc/cms.toml
-            echo 'title = "CMS"' >> venv/etc/cms.toml
-            echo 'base_url = "http://5.129.250.92"' >> venv/etc/cms.toml
-            echo 'support_email = "support@5.129.250.92"' >> venv/etc/cms.toml
+            echo 'server' >> venv/etc/cms.toml
+            echo ' title = "CMS"' >> venv/etc/cms.toml
+            echo ' base_url = "http://5.129.250.92"' >> venv/etc/cms.toml
+            echo ' support_email = "support@5.129.250.92"' >> venv/etc/cms.toml
+            echo '' >> venv/etc/cms.toml
+            echo 'admin' >> venv/etc/cms.toml
+            echo ' username = "admin"' >> venv/etc/cms.toml
+            echo ' password = "admin"' >> venv/etc/cms.toml
+            echo '' >> venv/etc/cms.toml
+            echo 'services' >> venv/etc/cms.toml
+            echo ' admin_web_server = true' >> venv/etc/cms.toml
+            echo ' log_service = true' >> venv/etc/cms.toml
+            echo ' ranking_web_server = true' >> venv/etc/cms.toml
+            echo ' port = 8080' >> venv/etc/cms.toml
+            echo ' debug = false' >> venv/etc/cms.toml
            
            python3 -m cms.server.config_converter etc/cms.conf etc/cms.toml 2>/dev/null || true
            python3 -m cms.server.generate_config etc/cms.toml 2>/dev/null || true
