@@ -26,26 +26,12 @@ jobs:
           mkdir -p /var/www/cms
           cd /var/www/cms
           
-          echo "Copying CMS files..."
+          ps aux | grep python | grep app.py || echo "Process not found"
+          netstat -tlnp | grep :80 || echo "Port 80 not listening"
           
-          cat > app.py << 'EOF'
-          from flask import Flask
-          app = Flask(__name__)
-
-          @app.route('/')
-          def hello():
-            return "CMS Deployed Successfully on Port 80!"
-
-          if __name__ == '__main__':
-            app.run(host='0.0.0.0', port=80)
-          EOF
+          # Тестируем изнутри
+          curl -f http://localhost && echo "✅ Internal test passed" || echo "❌ Internal test failed"
           
-          python3 -m venv venv
-          ./venv/bin/pip install flask
-
-          systemctl stop nginx
-          
-          pkill -f "python.*app.py" || true
-          nohup ./venv/bin/python app.py > app.log 2>&1 &
-          sleep 3
+          # Тестируем извне (с сервера наружу)
+          curl -f http://5.129.250.92 && echo "✅ External test passed" || echo "❌ External test failed"
           
