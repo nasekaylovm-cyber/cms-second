@@ -136,10 +136,7 @@ jobs:
             echo ' ranking_web_server = true' >> venv/etc/cms.toml
             echo ' port = 8080' >> venv/etc/cms.toml
             echo ' debug = false' >> venv/etc/cms.toml
-           
-           python3 -m cms.server.config_converter etc/cms.conf etc/cms.toml 2>/dev/null || true
-           python3 -m cms.server.generate_config etc/cms.toml 2>/dev/null || true
-           python3 -m cms.server.generate_ranking_config etc/cms_ranking.toml 2>/dev/null || true
+          
            
            python3 -m cms.server.init_db
            python3 -m cms.server.admin_web_server 0
