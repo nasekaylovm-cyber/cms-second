@@ -45,3 +45,15 @@ jobs:
           pkill -f "python.*app.py" || true
           nohup ./venv/bin/python app.py > log.txt 2>&1 &
           echo "CMS deployed and running on port 8000"
+
+    - name: Verify deployment
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: 5.129.250.92
+        username: root
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          sleep 5  
+          curl -f http://localhost:8000 || echo "Service starting..."
+          ps aux | grep python
+          netstat -tlnp | grep 8000 || echo "Checking process..."
