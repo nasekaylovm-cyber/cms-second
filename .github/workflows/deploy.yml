@@ -1,4 +1,4 @@
-name: CMS Deployment Pipeline
+name: CMS Deployment
 
 on:
   push:
@@ -8,36 +8,58 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    
     steps:
-    - name: Deploy to server
-      uses: appleboy/ssh-action@master
-      with:
-        host: 5.129.250.92
-        username: root
-        key: ${{ secrets.SERVER_SSH_KEY }}
-        script: |
-          sudo apt-get update
-          sudo apt-get install -y python3-pip python3-dev postgresql postgresql-contrib libpq-dev patch
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup SSH environment
+        uses: appleboy/ssh-action@master
+        with:
+          host: 5.129.250.92
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           
-          # Скачиваем архив
-          wget https://github.com/cms-dev/cms/releases/download/v1.2.0/v1.2.0.tar.gz
-          tar -xf v1.2.0.tar.gz
-          cd cms
-          
-          # Применяем исправление для Python 3
-          sed -i 's/os.umask(0022)/os.umask(0o22)/g' setup.py
-          
-          # Установка CMS
-          sudo python3 setup.py install
-          
-          # Настройка PostgreSQL
-          sudo -u postgres psql -c "CREATE USER your_username WITH PASSWORD 'your_password';"
-          createdb -O your_username your_database
-          psql your_database -c 'ALTER SCHEMA public OWNER TO your_username'
-          psql your_database -c 'GRANT SELECT ON pg_largeobject TO your_username'
-          
-          # Инициализация и запуск сервисов
-          cmsInitDB
-          cmsAdminWebServer 0
-          cmsLogService 0
-          cmsRankingWebServer
+
+      - name: Install dependencies on server
+        run: |
+          ssh ${{ env.HOST }} "sudo apt-get update -y"
+          ssh ${{ env.HOST }} "sudo apt-get install -y python3-pip python3-dev postgresql postgresql-contrib libpq-dev"
+
+      - name: Prepare server environment
+        run: |
+          ssh ${{ env.HOST }} "mkdir -p /var/www/cms"
+          ssh ${{ env.HOST }} "chmod 755 /var/www/cms"
+
+      - name: Deploy code to server
+        uses: appleboy/scp-action@v1
+        with:
+          host: 5.129.250.92
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "."
+          target: "/var/www/cms"
+
+      - name: Install CMS on server
+        run: |
+          ssh ${{ env.HOST }} "cd /var/www/cms && pip3 install -r requirements.txt"
+          ssh ${{ env.HOST }} "cd /var/www/cms && python3 setup.py install"
+
+      - name: Configure PostgreSQL
+        run: |
+          ssh ${{ env.HOST }} "sudo -u postgres psql -c \"CREATE USER cms_user WITH PASSWORD 'secure_password';\""
+          ssh ${{ env.HOST }} "createdb -O cms_user cms_db"
+          ssh ${{ env.HOST }} "psql cms_db -c 'ALTER SCHEMA public OWNER TO cms_user'"
+          ssh ${{ env.HOST }} "psql cms_db -c 'GRANT SELECT ON pg_largeobject TO cms_user'"
+
+      - name: Initialize CMS
+        run: |
+          ssh ${{ env.HOST }} "cd /var/www/cms && cmsInitDB"
+          ssh ${{ env.HOST }} "cd /var/www/cms && cmsAdminWebServer 0"
+          ssh ${{ env.HOST }} "cd /var/www/cms && cmsLogService 0"
+          ssh ${{ env.HOST }} "cd /var/www/cms && cmsRankingWebServer"
+
+      - name: Verify deployment
+        run: |
+          curl http://5.129.250.92:8889
+          curl http://5.129.250.92:8890
