@@ -1,19 +1,36 @@
-name: Deploy CMS to Server
+name: CMS Deployment Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Install Python 3 dependencies
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y python3-pip python3-dev postgresql postgresql-contrib libpq-dev
 
-      - name: Use Python 3
+      - name: Patch setup.py
+        run: |
+          # Создаем временный патч-файл
+          echo "--- setup.py" > setup.patch
+          echo "+++ setup.py" >> setup.patch
+          echo "@@ -53,7 +53,7 @@" >> setup.patch
+          echo " def setup_permissions():" >> setup.patch
+          echo "-    old_umask = os.umask(0022)" >> setup.patch
+          echo "+    old_umask = os.umask(0o22)" >> setup.patch
+          
+          # Применяем патч
+          patch -p0 < setup.patch
+
+      - name: Build CMS
         run: |
           wget https://github.com/cms-dev/cms/releases/download/v1.2.0/v1.2.0.tar.gz
           tar -xf v1.2.0.tar.gz
@@ -28,7 +45,7 @@ jobs:
         uses: appleboy/ssh-action@master
         with:
           host: 5.129.250.92
-          username: root
+          username: кщще
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             sudo apt-get update
@@ -36,6 +53,16 @@ jobs:
             wget https://github.com/cms-dev/cms/releases/download/v1.2.0/v1.2.0.tar.gz
             tar -xf v1.2.0.tar.gz
             cd cms
+            
+            # Применяем тот же патч на сервере
+            echo "--- setup.py" > setup.patch
+            echo "+++ setup.py" >> setup.patch
+            echo "@@ -53,7 +53,7 @@" >> setup.patch
+            echo " def setup_permissions():" >> setup.patch
+            echo "-    old_umask = os.umask(0022)" >> setup.patch
+            echo "+    old_umask = os.umask(0o22)" >> setup.patch
+            patch -p0 < setup.patch
+            
             sudo ./setup.py install
             sudo su - postgres -c "createuser your_username -P"
             createdb -O your_username your_database
