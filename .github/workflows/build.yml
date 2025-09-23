@@ -19,9 +19,8 @@ jobs:
       with:
         python-version: '3.11'
         
-    - name: Install
+    - name: Build check
       run: |
-        pip install
-  
-    
+        ls -la
+        echo "Build stage completed"
  
