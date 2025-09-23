@@ -32,14 +32,16 @@ jobs:
 
           @app.route('/')
           def hello():
-          return "CMS Deployed Successfully via Systemd!"
+          return "CMS Deployed Successfully 8000!"
 
           if __name__ == '__main__':
-          app.run(host='0.0.0.0', port=80)
+          app.run(host='0.0.0.0', port=8000)
           EOF
           
           python3 -m venv venv
           ./venv/bin/pip install flask
+
+          ufw allow 8000
           
           cat > /etc/systemd/system/cms.service << 'EOF'
           [Unit]
@@ -63,4 +65,4 @@ jobs:
           systemctl start cms
           sleep 3
           systemctl status cms
-          curl -f http://localhost && echo "✅ CMS is running!"
+          curl -f http://localhost:8000 && echo "✅ CMS is running!"
