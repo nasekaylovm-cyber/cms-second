@@ -8,20 +8,17 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-      
-      - name: Install dependencies
+      - name: Install Python 3 dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y python3-pip python3-dev postgresql postgresql-contrib libpq-dev
-      
-      - name: Build CMS
+
+      - name: Use Python 3
         run: |
           wget https://github.com/cms-dev/cms/releases/download/v1.2.0/v1.2.0.tar.gz
           tar -xf v1.2.0.tar.gz
           cd cms
-          ./setup.py build
+          python3 setup.py build
 
   deploy:
     needs: build
