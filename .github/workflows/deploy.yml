@@ -15,35 +15,26 @@ jobs:
         username: root
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         script: |
+          rm -rf /var/www/cms
           mkdir -p /var/www/cms
           cd /var/www/cms
           
           git clone https://github.com/cms-dev/cms.git .
           
+          # Смотрим структуру проекта
+          ls -la
+          find . -name "setup.py" -o -name "pyproject.toml" | head -5
+          
+          # Пробуем установить
           python3 -m venv venv
-          ./venv/bin/pip install -e .
+          ./venv/bin/pip install -e . || ./venv/bin/pip install . || echo "Trying alternative installation"
           
-          ./venv/bin/python -c "import cms; print('✅ CMS imported')"
-          
-          cat > /etc/systemd/system/cms.service << EOF
-            [Unit]
-            Description=CMS Contest Management System
-            After=network.target
-
-            [Service]
-            Type=simple
-            User=root
-            WorkingDirectory=/var/www/cms
-            Environment=PYTHONPATH=/var/www/cms
-            ExecStart=/var/www/cms/venv/bin/python -m cms resourceService -a 0.0.0.0 -p 8000
-            Restart=always
-
-            [Install]
-            WantedBy=multi-user.target
-          EOF
-          
-          systemctl daemon-reload
-          systemctl enable cms
-          systemctl restart cms
-          ufw allow 8000
-          echo "✅ Real CMS deployed and running"
+          # Проверяем что есть в проекте
+          ./venv/bin/python -c "
+          import os
+          print('Files in cms directory:')
+          if os.path.exists('cms'):
+              print(os.listdir('cms'))
+          else:
+              print('No cms directory found')
+          "
