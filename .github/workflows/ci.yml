@@ -2,13 +2,20 @@ name: Secure CI/CD Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, develop ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:  
 
+env:
+  SERVER_IP: ${{ secrets.SERVER_IP }}
+  SSH_USER: ${{ secrets.SSH_USERNAME }}
+  
 jobs:
-  sast:
+
+  sast-analysis:
     runs-on: ubuntu-latest
+    name: SAST Security Scanning
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -25,13 +32,26 @@ jobs:
         
     - name: Run Bandit SAST
       run: |
+        pip install bandit
         bandit -r . -f json -o reports/bandit-report.json || true
       #continue-on-error: true
+
+    - name: Semgrep Analysis
+      uses: returntocorp/semgrep-action@v1
+      with:
+        config: p/security-audit
+        args: --sarif
       
     - name: Run Safety check
       run: |
         safety check --json --output reports/safety-report.json || true
       #continue-on-error: true
+
+    - name: Upload SARIF to GitHub Security
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: semgrep.sarif 
       
     - name: Upload SAST reports
       uses: actions/upload-artifact@v4
@@ -39,22 +59,3 @@ jobs:
         name: sast-reports
         path: reports/
 
-  secrets-scan:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-        
-    - name: Detect secrets
-      uses: gitleaks/gitleaks-action@v2
-      with:
-        config-path: .gitleaks.toml
-        report-format: sarif
-        
-    - name: Upload secrets report
-      uses: actions/upload-artifact@v4
-      with:
-        name: secrets-report
-        path: gitleaks-report.json    
