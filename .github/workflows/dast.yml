@@ -20,15 +20,21 @@ jobs:
       
       - name: Install OWASP ZAP
         run: |
-          wget https://github.com/zaproxy/zaproxy/releases/download/2.14.0/ZAP_2.14.0_Linux.zip
-          unzip ZAP_2.14.0_Linux.zip
-          cd ZAP_2.14.0_Linux
-      
+          # Получаем последнюю версию ZAP
+          ZAP_VERSION=$(curl -s https://api.github.com/repos/zaproxy/zaproxy/releases/latest | grep "tag_name" | grep -Eo 'v[0-9]+\.[0-9]+\.[0-9]+' | head -n 1)
+          wget https://github.com/zaproxy/zaproxy/releases/download/$ZAP_VERSION/ZAP_$ZAP_VERSION_Linux.zip
+          unzip ZAP_$ZAP_VERSION_Linux.zip
+          cd ZAP_$ZAP_VERSION_Linux
+          
       - name: Start ZAP in daemon mode
         run: |
           ./zap.sh -daemon -config api.key=123456 -config script.scripting.enabled=true
           sleep 30 # Ждем запуска ZAP
-      
+          
+      - name: Check ZAP status
+        run: |
+          curl http://localhost:8080/JSON/core/core/status/?apikey=123456
+          
       - name: Configure ZAP scan
         run: |
           # Настройка целевого URL
@@ -38,15 +44,15 @@ jobs:
           while "$(curl -s "http://localhost:8080/JSON/ascan/view/scans/?apikey=123456" | grep -c 'inprogress')" -gt 0 ; do
             sleep 60
           done
-      
+          
       - name: Export scan results
         run: |
           # Создаем директорию для отчетов
           mkdir reports
           curl -o reports/DAST_Report.html "http://localhost:8080/OTHER/core/other/exportReport/?apikey=123456&name=DAST_Report&reportFormat=HTML"
-      
+          
       - name: Upload scan results
-        uses: actions/upload-artifact@v4 # Обновленная версия
+        uses: actions/upload-artifact@v4
         with:
           name: dast-reports
           path: reports/
