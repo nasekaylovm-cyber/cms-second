@@ -1,109 +1,109 @@
 name: CMS Deployment
 
 on:
- push:
- branches:
- - main
+  push:
+    branches:
+      - main
 
 jobs:
- deploy:
- runs-on: ubuntu-latest
- 
- steps:
- - name: Checkout code
- uses: actions/checkout@v3
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
- - name: Setup SSH environment
- uses: appleboy/ssh-action@master
- with:
- host: 5.129.250.92
- username: root
- key: ${{ secrets.SSH_PRIVATE_KEY }}
+      - name: Setup SSH environment
+        uses: appleboy/ssh-action@master
+        with:
+          host: 5.129.250.92
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
 
- - name: Install system dependencies
- uses: appleboy/ssh-action@master
- with:
- host: 5.129.250.92
- username: root
- key: ${{ secrets.SSH_PRIVATE_KEY }}
- script: |
- sudo apt-get update -y
- sudo apt-get install -y software-properties-common
- sudo apt-get install -y python3-pip python3-venv python3-dev postgresql postgresql-contrib libpq-dev
- sudo apt-get install -y libcups2-dev
- sudo apt-get install -y libcupsimage2-dev
+      - name: Install system dependencies
+        uses: appleboy/ssh-action@master
+        with:
+          host: 5.129.250.92
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            sudo apt-get update -y
+            sudo apt-get install -y software-properties-common
+            sudo apt-get install -y python3-pip python3-venv python3-dev postgresql postgresql-contrib libpq-dev
+            sudo apt-get install -y libcups2-dev
+            sudo apt-get install -y libcupsimage2-dev
 
- - name: Prepare environment
- uses: appleboy/ssh-action@master
- with:
- host: 5.129.250.92
- username: root
- key: ${{ secrets.SSH_PRIVATE_KEY }}
- script: |
- mkdir -p /var/www/cms
- cd /var/www/cms
- python3 -m venv venv
+      - name: Prepare environment
+        uses: appleboy/ssh-action@master
+        with:
+          host: 5.129.250.92
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            mkdir -p /var/www/cms
+            cd /var/www/cms
+            python3 -m venv venv
 
- - name: Deploy code
- uses: appleboy/scp-action@v1
- with:
- host: 5.129.250.92
- username: root
- key: ${{ secrets.SSH_PRIVATE_KEY }}
- source: "."
- target: "/var/www/cms"
+      - name: Deploy code
+        uses: appleboy/scp-action@v1
+        with:
+          host: 5.129.250.92
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "."
+          target: "/var/www/cms"
 
- - name: Configure PostgreSQL
- uses: appleboy/ssh-action@master
- with:
- host: 5.129.250.92
- username: root
- key: ${{ secrets.SSH_PRIVATE_KEY }}
- script: |
- # Переключение на пользователя postgres
- sudo -u postgres psql -c "CREATE USER cms_user WITH PASSWORD 'secure_password';"
- sudo -u postgres createdb -O cms_user cms_db
- sudo -u postgres psql cms_db -c 'ALTER SCHEMA public OWNER TO cms_user'
- sudo -u postgres psql cms_db -c 'GRANT SELECT ON pg_largeobject TO cms_user'
+      - name: Configure PostgreSQL
+        uses: appleboy/ssh-action@master
+        with:
+          host: 5.129.250.92
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            
+            sudo -u postgres psql -c "CREATE USER Alisa@mail.ru WITH PASSWORD '!Nas1k83';"
+            sudo -u postgres createdb -O cms_user cms_db
+            sudo -u postgres psql cms_db -c 'ALTER SCHEMA public OWNER TO cms_user'
+            sudo -u postgres psql cms_db -c 'GRANT SELECT ON pg_largeobject TO cms_user'
 
- - name: Install Python dependencies
- uses: appleboy/ssh-action@master
- with:
- host: 5.129.250.92
- username: root
- key: ${{ secrets.SSH_PRIVATE_KEY }}
- script: |
- cd /var/www/cms
- source venv/bin/activate
- pip install --upgrade pip
- pip install.
- pip install psycopg2-binary
+      - name: Install Python dependencies
+        uses: appleboy/ssh-action@master
+        with:
+          host: 5.129.250.92
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /var/www/cms
+            source venv/bin/activate
+            pip install --upgrade pip
+            pip install.
+            pip install psycopg2-binary
 
- - name: Fix license issue
- uses: appleboy/ssh-action@master
- with:
- host: 5.129.250.92
- username: root
- key: ${{ secrets.SSH_PRIVATE_KEY }}
- script: |
- cd /var/www/cms
- sed -i 's/"AGPL-3.0-or-later"/{"text": "AGPL-3.0-or-later"}/g' pyproject.toml
+      - name: Fix license issue
+        uses: appleboy/ssh-action@master
+        with:
+          host: 5.129.250.92
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /var/www/cms
+            sed -i 's/"AGPL-3.0-or-later"/{"text": "AGPL-3.0-or-later"}/g' pyproject.toml
 
- - name: Initialize CMS
- uses: appleboy/ssh-action@master
- with:
- host: 5.129.250.92
- username: root
- key: ${{ secrets.SSH_PRIVATE_KEY }}
- script: |
- cd /var/www/cms
- source venv/bin/activate
- cmsInitDB
- cmsAdminWebServer 0
- cmsLogService 0
- cmsRankingWebServer
+      - name: Initialize CMS
+        uses: appleboy/ssh-action@master
+        with:
+          host: 5.129.250.92
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /var/www/cms
+            source venv/bin/activate
+            cmsInitDB
+            cmsAdminWebServer 0
+            cmsLogService 0
+            cmsRankingWebServer
 
- - name: Verify deployment
- run: |
- curl http://5.129.250.92:8889
- curl http://5.129.250.92:8890
+      - name: Verify deployment
+        run: |
+          curl http://5.129.250.92:8889
+          curl http://5.129.250.92:8890
