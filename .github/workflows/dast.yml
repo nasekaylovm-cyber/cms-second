@@ -4,46 +4,49 @@ on:
   push:
     branches:
       - main
- 
+  schedule:
+    - cron: '0 2 * * *' # Запуск каждый день в 2:00
+
 jobs:
   dast-scan:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Set up Java (required for ZAP)
-      uses: actions/setup-java@v3
-      with:
-        java-version: '11'
-        distribution: 'adopt'
-        
-    - name: Install OWASP ZAP
-      run: |
-        wget https://github.com/zaproxy/zaproxy/releases/download/2.14.0/ZAP_2.14.0_Linux.zip
-        unzip ZAP_2.14.0_Linux.zip
-        cd ZAP_2.14.0_Linux
-        
-    - name: Start ZAP in daemon mode
-      run: |
-        ./zap.sh -daemon -config api.key=123456 -config script.scripting.enabled=true
-        sleep 30 # Ждем запуска ZAP
-        
-    - name: Configure ZAP scan
-      run: |
-        # Настройка целевого URL
-        curl -v "http://localhost:8080/JSON/ascan/action/scan?url=http://5.129.250.92&recursive=true&apikey=123456"
-        
-        # Ждем завершения сканирования
-        while [[ "$(curl -s "http://localhost:8080/JSON/ascan/view/scans/?apikey=123456" | grep -c 'inprogress')" -gt 0 ]]; do
-          sleep 60
-        done
-        
-    - name: Export scan results
-      run: |
-        # Экспорт отчета
-        curl -O "http://localhost:8080/OTHER/core/other/exportReport/?apikey=123456&name=DAST_Report&reportFormat=HTML"
-        
-    - name: Upload scan results
-      uses: actions/upload-artifact@v3
-      with:
-        name: dast-report
-        path: DAST_Report.html
+      - name: Set up Java (required for ZAP)
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'adopt'
+          
+      - name: Install OWASP ZAP
+        run: |
+          wget https://github.com/zaproxy/zaproxy/releases/download/2.14.0/ZAP_2.14.0_Linux.zip
+          unzip ZAP_2.14.0_Linux.zip
+          cd ZAP_2.14.0_Linux
+          
+      - name: Start ZAP in daemon mode
+        run: |
+          ./zap.sh -daemon -config api.key=123456 -config script.scripting.enabled=true
+          sleep 30 # Ждем запуска ZAP
+          
+      - name: Configure ZAP scan
+        run: |
+          # Настройка целевого URL
+          curl -v "http://localhost:8080/JSON/ascan/action/scan?url=http://5.129.250.92&recursive=true&apikey=123456"
+          
+          # Ждем завершения сканирования
+          while "$(curl -s "http://localhost:8080/JSON/ascan/view/scans/?apikey=123456" | grep -c 'inprogress')" -gt 0 ; do
+            sleep 60
+          done
+          
+      - name: Export scan results
+        run: |
+          # Экспорт отчета
+          curl -O "http://localhost:8080/OTHER/core/other/exportReport/?apikey=123456&name=DAST_Report&reportFormat=HTML"
+          
+      - name: Upload scan results
+        uses: actions/upload-artifact@v3
+        with:
+          name: dast-report
+          path: DAST_Report.html
+
