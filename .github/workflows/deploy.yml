@@ -117,11 +117,13 @@ jobs:
             if [ ! -f "venv/etc/cms.toml" ]; then
               echo "Файл venv/etc/cms.toml не найден, создаю его..."
               mkdir -p venv/etc
+              
               cat <<EOF > venv/etc/cms.toml
               title = "CMS"
               base_url = "http://5.129.250.92"
               support_email = "support@5.129.250.92"
-            EOF
+              EOF
+              
             fi
            rm -rf venv/etc
            mkdir -p etc
