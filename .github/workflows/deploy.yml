@@ -1,8 +1,9 @@
 name: CMS Deployment
 
 on:
-  push:
-    branches: [ main, develop ]
+ push:
+  branches:
+    - main
 
 jobs:
   deploy:
@@ -18,29 +19,33 @@ jobs:
         host: 5.129.250.92
         username: root
         key: ${{ secrets.SSH_PRIVATE_KEY }}
+        passphrase: ${{ secrets.PASSPHRASE }}
 
-    - name: Install system dependencies
+    - name: Install dependencies on server
       uses: appleboy/ssh-action@master
       with:
         host: 5.129.250.92
         username: root
         key: ${{ secrets.SSH_PRIVATE_KEY }}
+        passphrase: ${{ secrets.PASSPHRASE }}
         script: |
           sudo apt-get update -y
-          sudo apt-get install -y python3-pip python3-venv python3-dev postgresql postgresql-contrib libpq-dev libcups-dev
+          sudo apt-get install -y python3-pip python3-venv python3-dev postgresql postgresql-contrib libpq-dev
 
-    - name: Prepare environment
+    - name: Create virtual environment
       uses: appleboy/ssh-action@master
       with:
         host: 5.129.250.92
         username: root
         key: ${{ secrets.SSH_PRIVATE_KEY }}
+        passphrase: ${{ secrets.PASSPHRASE }}
         script: |
           mkdir -p /var/www/cms
           cd /var/www/cms
           python3 -m venv venv
+          source venv/bin/activate
 
-    - name: Deploy code
+    - name: Deploy code to server
       uses: appleboy/scp-action@v1
       with:
         host: 5.129.250.92
@@ -49,25 +54,27 @@ jobs:
         source: "."
         target: "/var/www/cms"
 
-    - name: Install Python dependencies
-      uses: appleboy/ssh-action@master
-      with:
-        host: 5.129.250.92
-        username: root
-        key: ${{ secrets/SSH_PRIVATE_KEY }}
-        script: |
-          cd /var/www/cms
-          source venv/bin/activate
-          pip install --upgrade pip
-          # Если requirements.txt нет, используем установку из setup.py
-          pip install .
-
-    - name: Fix license issue
+    - name: Install CMS dependencies
       uses: appleboy/ssh-action@master
       with:
         host: 5.129.250.92
         username: root
         key: ${{ secrets.SSH_PRIVATE_KEY }}
+        passphrase: ${{ secrets.PASSPHRASE }}
+        script: |
+          cd /var/www/cms
+          source venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install .
+
+    - name: Fix license issue in pyproject.toml
+      uses: appleboy/ssh-action@master
+      with:
+        host: 5.129.250.92
+        username: root
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        passphrase: ${{ secrets.PASSPHRASE }}
         script: |
           cd /var/www/cms
           sed -i 's/"AGPL-3.0-or-later"/{"text": "AGPL-3.0-or-later"}/g' pyproject.toml
@@ -78,6 +85,7 @@ jobs:
         host: 5.129.250.92
         username: root
         key: ${{ secrets.SSH_PRIVATE_KEY }}
+        passphrase: ${{ secrets.PASSPHRASE }}
         script: |
           sudo -u postgres psql -c "CREATE USER cms_user WITH PASSWORD 'secure_password';"
           createdb -O cms_user cms_db
@@ -90,15 +98,10 @@ jobs:
         host: 5.129.250.92
         username: root
         key: ${{ secrets.SSH_PRIVATE_KEY }}
+        passphrase: ${{ secrets.PASSPHRASE }}
         script: |
           cd /var/www/cms
           source venv/bin/activate
           cmsInitDB
           cmsAdminWebServer 0
           cmsLogService 0
-          cmsRankingWebServer
-
-    - name: Verify deployment
-      run: |
-        curl http://5.129.250.92:8889
-        curl http://5.129.250.92:8890
