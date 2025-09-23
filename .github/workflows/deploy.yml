@@ -20,29 +20,28 @@ jobs:
           username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Install dependencies on server
+      - name: Install system dependencies
         uses: appleboy/ssh-action@master
         with:
           host: 5.129.250.92
           username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-         
           script: |
             sudo apt-get update -y
-            sudo apt-get install -y python3-pip python3-dev postgresql postgresql-contrib libpq-dev
+            sudo apt-get install -y python3-pip python3-venv python3-dev postgresql postgresql-contrib libpq-dev
 
-      - name: Prepare server environment
+      - name: Prepare environment
         uses: appleboy/ssh-action@master
         with:
           host: 5.129.250.92
           username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-         
           script: |
             mkdir -p /var/www/cms
-            chmod 755 /var/www/cms
+            cd /var/www/cms
+            python3 -m venv venv
 
-      - name: Deploy code to server
+      - name: Deploy code
         uses: appleboy/scp-action@v1
         with:
           host: 5.129.250.92
@@ -51,17 +50,28 @@ jobs:
           source: "."
           target: "/var/www/cms"
 
-      - name: Install CMS on server
+      - name: Install Python dependencies
         uses: appleboy/ssh-action@master
         with:
           host: 5.129.250.92
           username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          
           script: |
             cd /var/www/cms
-            pip3 install -r requirements.txt
-            python3 setup.py install
+            source venv/bin/activate
+            pip install --upgrade pip
+            pip install -r requirements.txt
+            pip install .
+
+      - name: Fix license issue
+        uses: appleboy/ssh-action@master
+        with:
+          host: 5.129.250.92
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /var/www/cms
+            sed -i 's/"AGPL-3.0-or-later"/{"text": "AGPL-3.0-or-later"}/g' pyproject.toml
 
       - name: Configure PostgreSQL
         uses: appleboy/ssh-action@master
@@ -69,7 +79,6 @@ jobs:
           host: 5.129.250.92
           username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          
           script: |
             sudo -u postgres psql -c "CREATE USER cms_user WITH PASSWORD 'secure_password';"
             createdb -O cms_user cms_db
@@ -82,9 +91,9 @@ jobs:
           host: 5.129.250.92
           username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          
           script: |
             cd /var/www/cms
+            source venv/bin/activate
             cmsInitDB
             cmsAdminWebServer 0
             cmsLogService 0
