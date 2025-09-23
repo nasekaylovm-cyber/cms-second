@@ -56,14 +56,17 @@ jobs:
       - name: Configure directories
         uses: appleboy/ssh-action@master
         with:
-         host: 5.129.250.92
-         username: root
-         key: ${{ secrets.SSH_PRIVATE_KEY }}
-         script: |
-           cd /var/www/cms
-           mkdir -p etc
-           ln -s $(pwd)/etc /var/www/cms/venv/etc
-
+          host: 5.129.250.92
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /var/www/cms
+            if ! -d "etc"; then
+              mkdir etc
+            fi
+            if ! -L "venv/etc"; then
+              ln -s $(pwd)/etc venv/etc
+            fi
       - name: Configure PostgreSQL
         uses: appleboy/ssh-action@master
         with:
@@ -71,7 +74,7 @@ jobs:
           username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            
+            # Замените YOUR_SECURE_PASSWORD на ваш реальный пароль
             sudo -u postgres psql -c "CREATE USER Alisa@mail.ru WITH PASSWORD '!Nas1k83';"
             sudo -u postgres createdb -O cms_user cms_db
             sudo -u postgres psql cms_db -c 'ALTER SCHEMA public OWNER TO cms_user'
@@ -109,36 +112,27 @@ jobs:
           script: |
             cd /var/www/cms
             source venv/bin/activate
-      
-           
-            if [ ! -d "etc" ]; then
+            if ! -d "etc"; then
               mkdir etc
             fi
-            
-          
+         
             if [ -f "cms.conf" ]; then
               mv cms.conf etc/
               python3 -m cms.server.config_converter etc/cms.conf etc/cms.toml
             fi
             
            
-            if [ ! -f "etc/cms.toml" ]; then
+            if ! [ -f "etc/cms.toml" ]; then
               python3 -m cms.server.generate_config etc/cms.toml
             fi
             
-           
-            if [ ! -f "etc/cms_ranking.toml" ]; then
+          
+            if ! [ -f "etc/cms_ranking.toml" ]; then
               python3 -m cms.server.generate_ranking_config etc/cms_ranking.toml
             fi
             
-            
+          
             python3 -m cms.server.init_db
             python3 -m cms.server.admin_web_server 0
             python3 -m cms.server.log_service 0
             python3 -m cms.server.ranking_web_server
-
-
-      - name: Verify deployment
-        run: |
-          curl http://5.129.250.92:8889
-          curl http://5.129.250.92:8890
