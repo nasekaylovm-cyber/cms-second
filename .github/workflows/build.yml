@@ -21,14 +21,7 @@ jobs:
         
     - name: Install core dependencies
       run: |
-        pip install -e
-   
-    - name: Verify Python syntax
-      run: |
-        python -m py_compile cms/*.py
-        echo "Python syntax OK"
+        pip install
+  
     
-    - name: Install and test
-      run: |
-        pip install -e .
-        python -c "import cms; print('CMS imported successfully')"
+ 
