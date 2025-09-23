@@ -19,6 +19,16 @@ jobs:
       with:
         python-version: '3.11'
         
+    - name: Install core dependencies
+      run: |
+        pip install -r requirements.txt --no-deps
+        echo "Core dependencies installed"     
+   
+    - name: Verify Python syntax
+      run: |
+        python -m py_compile cms/*.py
+        echo "Python syntax OK"
+    
     - name: Install and test
       run: |
         pip install -e .
