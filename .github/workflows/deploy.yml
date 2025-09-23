@@ -118,7 +118,11 @@ jobs:
            mkdir -p etc
            ln -sf $(pwd)/etc venv/etc
            
-            echo 'title = "CMS"' > venv/etc/cms.toml
+            echo '[database]' > venv/etc/cms.toml
+            echo 'url = "sqlite:///db.sqlite"' >> venv/etc/cms.toml
+            echo '' >> venv/etc/cms.toml
+            echo '[server]' >> venv/etc/cms.toml
+            echo 'title = "CMS"' >> venv/etc/cms.toml
             echo 'base_url = "http://5.129.250.92"' >> venv/etc/cms.toml
             echo 'support_email = "support@5.129.250.92"' >> venv/etc/cms.toml
            
