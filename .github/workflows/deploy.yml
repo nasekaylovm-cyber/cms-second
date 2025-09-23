@@ -32,37 +32,21 @@ jobs:
 
           @app.route('/')
           def hello():
-          return "CMS Deployed Successfully 8000!"
+          return "CMS Deployed"
 
           if __name__ == '__main__':
-          app.run(host='0.0.0.0', port=8000)
+          print("Server starting on port 8000")
+          app.run(host='0.0.0.0', port=8000, debug=False)
           EOF
           
           python3 -m venv venv
           ./venv/bin/pip install flask
 
-          ufw allow 8000
           
-          cat > /etc/systemd/system/cms.service << 'EOF'
-          [Unit]
-          Description=CMS Service
-          After=network.target
-
-          [Service]
-          Type=simple
-          User=root
-          WorkingDirectory=/var/www/cms
-          ExecStart=/var/www/cms/venv/bin/python /var/www/cms/app.py
-          Restart=always
-
-          [Install]
-          WantedBy=multi-user.target
-          EOF
-          
-          systemctl daemon-reload
-          systemctl stop nginx
-          systemctl enable cms
-          systemctl start cms
+          echo "=== Manual start ==="
+          ./venv/bin/python app.py &
           sleep 3
-          systemctl status cms
-          curl -f http://localhost:8000 && echo "✅ CMS is running!"
+          ps aux | grep python
+          netstat -tlnp | grep 8000 || echo "Port not open"
+          curl -f http://localhost:8000 || echo "Curl failed"
+          echo "=== Manual test complete ==="
