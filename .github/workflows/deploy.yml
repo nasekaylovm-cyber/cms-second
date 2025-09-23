@@ -144,3 +144,7 @@ jobs:
            python3 -m cms.server.admin_web_server 0
            python3 -m cms.server.log_service 0
            python3 -m cms.server.ranking_web_server
+
+
+            systemctl restart nginx
+            systemctl status nginx
