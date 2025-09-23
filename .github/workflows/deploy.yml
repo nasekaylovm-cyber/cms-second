@@ -34,18 +34,18 @@ jobs:
 
           @app.route('/')
           def hello():
-            return "CMS Deployed Successfully!"
+            return "CMS Deployed Successfully on Port 80!"
 
           if __name__ == '__main__':
-            app.run(host='0.0.0.0', port=8000)
+            app.run(host='0.0.0.0', port=80)
           EOF
           
           python3 -m venv venv
           ./venv/bin/pip install flask
+
+          systemctl stop nginx
           
+          pkill -f "python.*app.py" || true
           nohup ./venv/bin/python app.py > app.log 2>&1 &
           sleep 3
           
-          ps aux | grep python
-          netstat -tlnp | grep 8000 || echo "Port 8000 not listening"
-          curl -f http://localhost:8000 && echo "Server is running!" || echo "Server failed to start"
