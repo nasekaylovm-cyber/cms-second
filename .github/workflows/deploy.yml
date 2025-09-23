@@ -19,17 +19,28 @@ jobs:
           host: 5.129.250.92
           username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          
 
       - name: Install dependencies on server
-        run: |
-          ssh ${{ env.HOST }} "sudo apt-get update -y"
-          ssh ${{ env.HOST }} "sudo apt-get install -y python3-pip python3-dev postgresql postgresql-contrib libpq-dev"
+        uses: appleboy/ssh-action@master
+        with:
+          host: 5.129.250.92
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+         
+          script: |
+            sudo apt-get update -y
+            sudo apt-get install -y python3-pip python3-dev postgresql postgresql-contrib libpq-dev
 
       - name: Prepare server environment
-        run: |
-          ssh ${{ env.HOST }} "mkdir -p /var/www/cms"
-          ssh ${{ env.HOST }} "chmod 755 /var/www/cms"
+        uses: appleboy/ssh-action@master
+        with:
+          host: 5.129.250.92
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+         
+          script: |
+            mkdir -p /var/www/cms
+            chmod 755 /var/www/cms
 
       - name: Deploy code to server
         uses: appleboy/scp-action@v1
@@ -41,23 +52,43 @@ jobs:
           target: "/var/www/cms"
 
       - name: Install CMS on server
-        run: |
-          ssh ${{ env.HOST }} "cd /var/www/cms && pip3 install -r requirements.txt"
-          ssh ${{ env.HOST }} "cd /var/www/cms && python3 setup.py install"
+        uses: appleboy/ssh-action@master
+        with:
+          host: 5.129.250.92
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          
+          script: |
+            cd /var/www/cms
+            pip3 install -r requirements.txt
+            python3 setup.py install
 
       - name: Configure PostgreSQL
-        run: |
-          ssh ${{ env.HOST }} "sudo -u postgres psql -c \"CREATE USER cms_user WITH PASSWORD 'secure_password';\""
-          ssh ${{ env.HOST }} "createdb -O cms_user cms_db"
-          ssh ${{ env.HOST }} "psql cms_db -c 'ALTER SCHEMA public OWNER TO cms_user'"
-          ssh ${{ env.HOST }} "psql cms_db -c 'GRANT SELECT ON pg_largeobject TO cms_user'"
+        uses: appleboy/ssh-action@master
+        with:
+          host: 5.129.250.92
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          
+          script: |
+            sudo -u postgres psql -c "CREATE USER cms_user WITH PASSWORD 'secure_password';"
+            createdb -O cms_user cms_db
+            psql cms_db -c 'ALTER SCHEMA public OWNER TO cms_user'
+            psql cms_db -c 'GRANT SELECT ON pg_largeobject TO cms_user'
 
       - name: Initialize CMS
-        run: |
-          ssh ${{ env.HOST }} "cd /var/www/cms && cmsInitDB"
-          ssh ${{ env.HOST }} "cd /var/www/cms && cmsAdminWebServer 0"
-          ssh ${{ env.HOST }} "cd /var/www/cms && cmsLogService 0"
-          ssh ${{ env.HOST }} "cd /var/www/cms && cmsRankingWebServer"
+        uses: appleboy/ssh-action@master
+        with:
+          host: 5.129.250.92
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          
+          script: |
+            cd /var/www/cms
+            cmsInitDB
+            cmsAdminWebServer 0
+            cmsLogService 0
+            cmsRankingWebServer
 
       - name: Verify deployment
         run: |
