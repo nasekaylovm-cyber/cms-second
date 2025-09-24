@@ -12,7 +12,7 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       
       - name: Collect reports
         run: |
@@ -24,7 +24,7 @@ jobs:
           curl -o reports/secret.json -L ${CI_JOB_URL}/artifacts/file/secret.json
       
       - name: Save artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: reports
           path: reports/
@@ -38,7 +38,7 @@ jobs:
         uses: actions/checkout@v3
       
       - name: Download reports
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: reports
       
@@ -62,7 +62,7 @@ jobs:
         uses: actions/checkout@v3
       
       - name: Download reports
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: reports
       
@@ -75,7 +75,7 @@ jobs:
           python transform.py combined_report.json processed_report.json
       
       - name: Save transformed artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: processed-report
           path: processed_report.json
@@ -89,7 +89,7 @@ jobs:
         uses: actions/checkout@v3
       
       - name: Download processed report
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: processed-report
       
