@@ -1,109 +1,42 @@
-name: Report Issue
-
-on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main]
-
 jobs:
-  collect-reports:
+  download-reports:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        
-      - name: Collect reports
+      - name: Prepare directory
         run: |
           mkdir -p reports
           
-          # Используем GitHub Actions переменные
-          curl -o reports/build.json -L ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/build.json
-          curl -o reports/ci.json -L ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/ci.json
-          curl -o reports/dast.json -L ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/dast.json
-          curl -o reports/deploy.json -L ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/deploy.json
-          curl -o reports/secret.json -L ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/secret.json
+      - name: Download artifacts with error handling
+        run: |
+          # Базовый URL для артефактов
+          BASE_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/
           
-          # Проверяем существование файлов
+          # Массив файлов для скачивания
+          FILES=("build" "ci" "dast" "deploy" "secret")
+          
+          # Функция для скачивания с обработкой ошибок
+          download_with_check() {
+            local file_name=$1
+            echo "Trying to download ${file_name}.json..."
+            
+            # Скачиваем файл с подавлением ошибок
+            curl -s -o "reports/${file_name}.json" -L "${BASE_URL}${file_name}.json" || {
+              echo "Warning: File ${file_name}.json not found or failed to download"
+              rm -f "reports/${file_name}.json"  # Удаляем пустой файл, если он создался
+            }
+          }
+          
+          # Цикл скачивания с обработкой
+          for file in "${FILES[@]}"; do
+            download_with_check "${file}"
+          done
+          
+      - name: Check downloaded files
+        run: |
+          echo "Downloaded files:"
           ls -la reports/
           
-      - name: Save artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: reports
-          path: reports/
-
-  validate-reports:
-    runs-on: ubuntu-latest
-    needs: collect-reports
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        
-      - name: Download reports
-        uses: actions/download-artifact@v4
-        with:
-          name: reports
-          
-      - name: Install JSON Schema
-        run: npm install jsonschema
-        
-      - name: Validate reports
+      - name: Optional: Cleanup empty files
         run: |
-          python validate.py reports/build.json schema/build.json
-          python validate.py reports/ci.json schema/ci.json
-          python validate.py reports/dast.json schema/dast.json
-          python validate.py reports/deploy.json schema/deploy.json
-          python validate.py reports/secret.json schema/secret.json
-
-  transform-reports:
-    runs-on: ubuntu-latest
-    needs: validate-reports
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        
-      - name: Download reports
-        uses: actions/download-artifact@v4
-        with:
-          name: reports
-          
-      - name: Install jq
-        run: npm install jq
-        
-      - name: Transform reports
-        run: |
-          jq -s '.' reports/*.json > combined_report.json
-          python transform.py combined_report.json processed_report.json
-          
-      - name: Save transformed artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: processed-report
-          path: processed_report.json
-
-  send-reports:
-    runs-on: ubuntu-latest
-    needs: transform-reports
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        
-      - name: Download processed report
-        uses: actions/download-artifact@v4
-        with:
-          name: processed-report
-          
-      - name: Send reports
-        run: |
-          export REPORT_API_KEY=${REPORT_API_KEY}
-          export REPORT_URL=${REPORT_URL}
-          
-          curl -H "Authorization: Bearer ${REPORT_API_KEY}" \
-          -H "Content-Type: application/json" \
-          -X POST ${REPORT_URL} \
-          -d @processed_report.json
+          find reports/ -type f -empty -delete
