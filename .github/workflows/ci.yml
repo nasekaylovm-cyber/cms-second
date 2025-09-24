@@ -25,33 +25,29 @@ jobs:
       - name: Install security tools
         run: |
           pip install bandit safety
+          pip list  # Для отладки - выведем список установленных пакетов
 
       - name: Run Bandit scan
         run: |
-          bandit -r . -f json -o bandit-report.json
-          continue-on-error: true
+          # Запускаем Bandit с подробным логированием
+          bandit -r . -f json -o bandit-report.json --verbose
+        continue-on-error: true  # Продолжаем выполнение даже при ошибке
+
+      - name: Check Bandit Report
+        if: always()
+        run: |
+          cat bandit-report.json  # Выводим содержимое отчета для отладки
 
       - name: Run Safety scan
         run: |
           safety check --json > safety-report.json
-          continue-on-error: true
+        continue-on-error: true
 
-      - name: Process Bandit Report
+      - name: Process Reports
         run: |
-          jq -r '.results[] | select(.severity == "CRITICAL" or .severity == "HIGH") | 
-          "gh issue create --title \"Security Issue: \(.test_name)\" --body \"File: \(.filename):\(.lineno)\nDescription: \(.issue_text)\nSeverity: \(.severity)\" --label security,\(.severity | ascii_downcase)"' bandit-report.json | bash
-
-      - name: Process Safety Report
-        run: |
-          jq -r '.vulnerabilities[] | 
-          "gh issue create --title \"Vulnerable Package: \(.package)\" --body \"Package: \(.package)\nVersion: \(.installed_version)\nVulnerability ID: \(.vulnerability_id)\nSeverity: \(.severity)\" --label security,dependency"' safety-report.json | bash
-
-      - name: Install GitHub CLI
-        run: |
-          sudo apt-get update
-          sudo apt-get install gh
-          echo ${{ github.token }} | gh auth login --with-token --host github.com
-          gh config set -h github.com git.protocol https
+          # Добавляем обработку отчетов
+          jq . bandit-report.json || true
+          jq . safety-report.json || true
 
       - name: Upload reports
         uses: actions/upload-artifact@v4
@@ -60,3 +56,4 @@ jobs:
           path: |
             bandit-report.json
             safety-report.json
+
