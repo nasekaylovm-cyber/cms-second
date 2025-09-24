@@ -25,6 +25,9 @@ jobs:
           curl -o reports/deploy.json -L ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/deploy.json
           curl -o reports/secret.json -L ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/secret.json
           
+          # Проверяем существование файлов
+          ls -la reports/
+          
       - name: Save artifacts
         uses: actions/upload-artifact@v4
         with:
