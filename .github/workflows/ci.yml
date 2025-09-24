@@ -29,57 +29,29 @@ jobs:
       - name: Run Bandit scan
         run: |
           bandit -r . -f json -o bandit-report.json
-        continue-on-error: true
+          continue-on-error: true
 
       - name: Run Safety scan
         run: |
           safety check --json > safety-report.json
-        continue-on-error: true
+          continue-on-error: true
 
-      - name: Create Issues from Bandit Report
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const fs = require('fs');
-            const report = JSON.parse(fs.readFileSync('bandit-report.json'));
-            
-            report.results.forEach(result => {
-              if (['CRITICAL', 'HIGH'].includes(result.severity)) {
-                github.issues.create({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  title: `Security Issue: ${result.test_name}`,
-                  body: `
-                    File: ${result.filename}:${result.lineno}
-                    Description: ${result.issue_text}
-                    Severity: ${result.severity}
-                    `,
-                  labels: ['security', result.severity.toLowerCase()]
-                });
-              }
-            });
+      - name: Process Bandit Report
+        run: |
+          jq -r '.results[] | select(.severity == "CRITICAL" or .severity == "HIGH") | 
+          "gh issue create --title \"Security Issue: \(.test_name)\" --body \"File: \(.filename):\(.lineno)\nDescription: \(.issue_text)\nSeverity: \(.severity)\" --label security,\(.severity | ascii_downcase)"' bandit-report.json | bash
 
-      - name: Create Issues from Safety Report
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const fs = require('fs');
-            const report = JSON.parse(fs.readFileSync('safety-report.json'));
-            
-            report.vulnerabilities.forEach(vuln => {
-              github.issues.create({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                title: `Vulnerable Package: ${vuln.package}`,
-                body: `
-                  Package: ${vuln.package}
-                  Version: ${vuln.installed_version}
-                  Vulnerability ID: ${vuln.vulnerability_id}
-                  Severity: ${vuln.severity}
-                  `,
-                labels: ['security', 'dependency']
-              });
-            });
+      - name: Process Safety Report
+        run: |
+          jq -r '.vulnerabilities[] | 
+          "gh issue create --title \"Vulnerable Package: \(.package)\" --body \"Package: \(.package)\nVersion: \(.installed_version)\nVulnerability ID: \(.vulnerability_id)\nSeverity: \(.severity)\" --label security,dependency"' safety-report.json | bash
+
+      - name: Install GitHub CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install gh
+          echo ${{ github.token }} | gh auth login --with-token --host github.com
+          gh config set -h github.com git.protocol https
 
       - name: Upload reports
         uses: actions/upload-artifact@v4
