@@ -13,16 +13,18 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+        
       - name: Collect reports
         run: |
           mkdir -p reports
-          curl -o reports/build.json -L ${CI_JOB_URL}/artifacts/file/build.json
-          curl -o reports/ci.json -L ${CI_JOB_URL}/artifacts/file/ci.json
-          curl -o reports/dast.json -L ${CI_JOB_URL}/artifacts/file/dast.json
-          curl -o reports/deploy.json -L ${CI_JOB_URL}/artifacts/file/deploy.json
-          curl -o reports/secret.json -L ${CI_JOB_URL}/artifacts/file/secret.json
-      
+          
+          # Используем GitHub Actions переменные
+          curl -o reports/build.json -L ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/build.json
+          curl -o reports/ci.json -L ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/ci.json
+          curl -o reports/dast.json -L ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/dast.json
+          curl -o reports/deploy.json -L ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/deploy.json
+          curl -o reports/secret.json -L ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/secret.json
+          
       - name: Save artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -31,20 +33,20 @@ jobs:
 
   validate-reports:
     runs-on: ubuntu-latest
-    needs: [collect-reports]
+    needs: collect-reports
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
-      
+        uses: actions/checkout@v4
+        
       - name: Download reports
         uses: actions/download-artifact@v4
         with:
           name: reports
-      
+          
       - name: Install JSON Schema
         run: npm install jsonschema
-      
+        
       - name: Validate reports
         run: |
           python validate.py reports/build.json schema/build.json
@@ -55,25 +57,25 @@ jobs:
 
   transform-reports:
     runs-on: ubuntu-latest
-    needs: [validate-reports]
+    needs: validate-reports
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
-      
+        uses: actions/checkout@v4
+        
       - name: Download reports
         uses: actions/download-artifact@v4
         with:
           name: reports
-      
+          
       - name: Install jq
         run: npm install jq
-      
+        
       - name: Transform reports
         run: |
-          jq -s '.[]' reports/*.json > combined_report.json
+          jq -s '.' reports/*.json > combined_report.json
           python transform.py combined_report.json processed_report.json
-      
+          
       - name: Save transformed artifact
         uses: actions/upload-artifact@v4
         with:
@@ -82,23 +84,23 @@ jobs:
 
   send-reports:
     runs-on: ubuntu-latest
-    needs: [transform-reports]
+    needs: transform-reports
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
-      
+        uses: actions/checkout@v4
+        
       - name: Download processed report
         uses: actions/download-artifact@v4
         with:
           name: processed-report
-      
+          
       - name: Send reports
         run: |
           export REPORT_API_KEY=${REPORT_API_KEY}
           export REPORT_URL=${REPORT_URL}
           
           curl -H "Authorization: Bearer ${REPORT_API_KEY}" \
-               -H "Content-Type: application/json" \
-               -X POST ${REPORT_URL} \
-               -d @processed_report.json
+          -H "Content-Type: application/json" \
+          -X POST ${REPORT_URL} \
+          -d @processed_report.json
