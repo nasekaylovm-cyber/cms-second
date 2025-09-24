@@ -1,15 +1,110 @@
-name: Add Issue
+stages:
+  - collect
+  - validate
+  - transform
+  - report
+  - notify
 
-on:
- issues:
-   types: [opened]
+### 1. Сбор отчетов
 
-jobs:
-  add-issue:
-    runs-on: ubuntu-latest
-    steps:
-     - uses: actions/checkout@v2
-     - name: Add Issue
-       run: |
-         echo "Adding issue to repository..."
-         cat ISSUE_TEMPLATE.md >> $GITHUB_EVENT_PATH
+collect-reports:
+  stage: collect
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "main"
+  script:
+    - mkdir -p reports
+    - # Сбор артефактов из других пайплайнов
+    - curl -o reports/build.json -L ${CI_JOB_URL}/artifacts/file/build.json
+    - curl -o reports/ci.json -L ${CI_JOB_URL}/artifacts/file/ci.json
+    - curl -o reports/dast.json -L ${CI_JOB_URL}/artifacts/file/dast.json
+    - curl -o reports/deploy.json -L ${CI_JOB_URL}/artifacts/file/deploy.json
+    - curl -o reports/secret.json -L ${CI_JOB_URL}/artifacts/file/secret.json
+  artifacts:
+    paths:
+      - reports/
+
+### 2. Валидация данных
+
+validate-reports:
+  stage: validate
+  script:
+    - # Установка JSON Schema Validator
+    - npm install jsonschema
+    - # Валидация каждого отчета
+    - python validate.py reports/build.json schema/build.json
+    - python validate.py reports/ci.json schema/ci.json
+    - python validate.py reports/dast.json schema/dast.json
+    - python validate.py reports/deploy.json schema/deploy.json
+    - python validate.py reports/secret.json schema/secret.json
+
+### 3. Трансформация данных
+
+transform-reports:
+  stage: transform
+  script:
+    - # Установка зависимостей
+    - npm install jq
+    - # Объединение отчетов
+    - jq -s '.[]' reports/*.json > combined_report.json
+    - # Дополнительная обработка
+    - python transform.py combined_report.json processed_report.json
+  artifacts:
+    paths:
+      - processed_report.json
+
+### 4. Интеграция с системой отчетов
+
+send-reports:
+  stage: report
+  script:
+    - # Настройка подключения к системе отчетов
+    - export REPORT_API_KEY=${REPORT_API_KEY}
+    - export REPORT_URL=${REPORT_URL}
+    - # Отправка отчета
+    - curl -H "Authorization: Bearer ${REPORT_API_KEY}" \
+          -H "Content-Type: application/json" \
+          -X POST ${REPORT_URL} \
+          -d @processed_report.json
+
+### 5. Уведомления
+
+notify-team:
+  stage: notify
+  script:
+    - # Отправка уведомлений
+    - curl -X POST ${SLACK_WEBHOOK_URL} \
+          -H 'Content-type: application/json' \
+          -d '{
+                "text": "Отчеты успешно отправлены в систему",
+                "blocks": [
+                  {
+                    "type": "section",
+                    "text": {
+                      "type": "mrkdwn",
+                      "text": "*Отчет успешно обработан* \nCommit: ${CI_COMMIT_SHA}"
+                    }
+                  }
+                ]
+              }'
+
+### Обработчик ошибок
+
+error-handling:
+  stage: notify
+  when: on_failure
+  script:
+    - echo "Произошла ошибка при обработке отчетов"
+    - curl -X POST ${SLACK_WEBHOOK_URL} \
+          -H 'Content-type: application/json' \
+          -d '{
+                "text": "Ошибка при обработке отчетов",
+                "blocks": [
+                  {
+                    "type": "section",
+                    "text": {
+                      "type": "mrkdwn",
+                      "text": "*Ошибка в пайплайне* \nCommit: ${CI_COMMIT_SHA}"
+                    }
+                  }
+                ]
+              }'
