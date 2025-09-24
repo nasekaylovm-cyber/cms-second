@@ -39,3 +39,17 @@ jobs:
         path: |
           bandit-report.json
           safety-report.json
+
+
+    - name: Parse Security Findings
+      run: |
+       
+        jq -r '.results[] | select(.severity=="CRITICAL")' bandit-report.json > critical-issues.json
+        
+    - name: Create GitHub Issues
+      uses: peter-evans/create-issue-from-json@v2
+      with:
+        title: "Critical Security Findings"
+        json-file: critical-issues.json
+        labels: security,critical
+        
