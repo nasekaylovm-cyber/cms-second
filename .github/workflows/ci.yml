@@ -1,4 +1,4 @@
-name: Secure CI/CD Pipeline with Issue Creation
+name: Security Scan and Issue Creation
 
 on:
   push:
@@ -6,59 +6,85 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+  issues: write
+
 jobs:
-  sast:
+  security-scan:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
-        
-    - name: Install tools
-      run: |
-        pip install bandit safety
-        
-    - name: Run Bandit
-      run: |
-        bandit -r . -f json -o bandit-report.json
-      continue-on-error: true
-      
-    - name: Run Safety
-      run: |
-        safety check --json > safety-report.json
-      continue-on-error: true
-      
-    - name: Install GitHub CLI
-      run: |
-        wget https://github.com/cli/cli/releases/latest/download/gh_2.25.0_linux_amd64.deb
-        sudo dpkg -i gh_2.25.0_linux_amd64.deb
-        
-    - name: Authenticate GitHub CLI
-      run: |
-        echo ${{ github.token }} | gh auth login --with-token --host github.com
-        gh config set -h github.com git.protocol https
-        
-    - name: Parse and Create Issues from Bandit Report
-      run: |
-        jq -r '.results[] | 
-        if .severity == "CRITICAL" or .severity == "HIGH" then 
-          "gh issue create --title '\"'Critical Security Issue: \(.test_name)'\"' --body '\"'File: \(.filename):\(.lineno}\nDescription: \(.issue_text)\nSeverity: \(.severity)'\"'" 
-        end' bandit-report.json | bash
-      
-    - name: Parse and Create Issues from Safety Report
-      run: |
-        jq -r '.vulnerabilities[] | 
-        "gh issue create --title '\"'Vulnerable Package: \(.package)}'\"' --body '\"'Package: \(.package)\nVersion: \(.installed_version)\nVulnerability ID: \(.vulnerability_id)\nSeverity: \(.severity)'\"'" 
-        safety-report.json | bash
-      
-    - name: Upload reports
-      uses: actions/upload-artifact@v4
-      with:
-        name: security-reports
-        path: |
-          bandit-report.json
-          safety-report.json
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install security tools
+        run: |
+          pip install bandit safety
+
+      - name: Run Bandit scan
+        run: |
+          bandit -r . -f json -o bandit-report.json
+        continue-on-error: true
+
+      - name: Run Safety scan
+        run: |
+          safety check --json > safety-report.json
+        continue-on-error: true
+
+      - name: Create Issues from Bandit Report
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync('bandit-report.json'));
+            
+            report.results.forEach(result => {
+              if (['CRITICAL', 'HIGH'].includes(result.severity)) {
+                github.issues.create({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  title: `Security Issue: ${result.test_name}`,
+                  body: `
+                    File: ${result.filename}:${result.lineno}
+                    Description: ${result.issue_text}
+                    Severity: ${result.severity}
+                    `,
+                  labels: ['security', result.severity.toLowerCase()]
+                });
+              }
+            });
+
+      - name: Create Issues from Safety Report
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync('safety-report.json'));
+            
+            report.vulnerabilities.forEach(vuln => {
+              github.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `Vulnerable Package: ${vuln.package}`,
+                body: `
+                  Package: ${vuln.package}
+                  Version: ${vuln.installed_version}
+                  Vulnerability ID: ${vuln.vulnerability_id}
+                  Severity: ${vuln.severity}
+                  `,
+                labels: ['security', 'dependency']
+              });
+            });
+
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: |
+            bandit-report.json
+            safety-report.json
