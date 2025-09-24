@@ -1,10 +1,10 @@
-name: Secure CI/CD Pipeline
+name: Secure CI/CD Pipeline with Issue Creation
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   sast:
@@ -32,6 +32,29 @@ jobs:
         safety check --json > safety-report.json
       continue-on-error: true
       
+    - name: Install GitHub CLI
+      run: |
+        wget https://github.com/cli/cli/releases/latest/download/gh_2.25.0_linux_amd64.deb
+        sudo dpkg -i gh_2.25.0_linux_amd64.deb
+        
+    - name: Authenticate GitHub CLI
+      run: |
+        echo ${{ github.token }} | gh auth login --with-token --host github.com
+        gh config set -h github.com git.protocol https
+        
+    - name: Parse and Create Issues from Bandit Report
+      run: |
+        jq -r '.results[] | 
+        if .severity == "CRITICAL" or .severity == "HIGH" then 
+          "gh issue create --title '\"'Critical Security Issue: \(.test_name)'\"' --body '\"'File: \(.filename):\(.lineno}\nDescription: \(.issue_text)\nSeverity: \(.severity)'\"'" 
+        end' bandit-report.json | bash
+      
+    - name: Parse and Create Issues from Safety Report
+      run: |
+        jq -r '.vulnerabilities[] | 
+        "gh issue create --title '\"'Vulnerable Package: \(.package)}'\"' --body '\"'Package: \(.package)\nVersion: \(.installed_version)\nVulnerability ID: \(.vulnerability_id)\nSeverity: \(.severity)'\"'" 
+        safety-report.json | bash
+      
     - name: Upload reports
       uses: actions/upload-artifact@v4
       with:
@@ -39,17 +62,3 @@ jobs:
         path: |
           bandit-report.json
           safety-report.json
-
-
-    - name: Parse Security Findings
-      run: |
-       
-        jq -r '.results[] | select(.severity=="CRITICAL")' bandit-report.json > critical-issues.json
-        
-    - name: Create GitHub Issues
-      uses: peter-evans/create-issue-from-json@v2
-      with:
-        title: "Critical Security Findings"
-        json-file: critical-issues.json
-        labels: security,critical
-        
